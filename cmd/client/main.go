@@ -38,10 +38,41 @@ func main() {
 		pubsub.TRANSIENT,
 	)
 
+	gameState := gamelogic.NewGameState(username)
+
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
-	sig := <-signalChannel
 
-	fmt.Printf("%v signal received. Shutting down...", sig)
-	connection.Close()
+mainloop:
+	for {
+		inputWords := gamelogic.GetInput()
+		switch inputWords[0] {
+		case "spawn":
+			fmt.Println("Spawning troops...")
+			err := gameState.CommandSpawn(inputWords)
+			if err != nil {
+				fmt.Printf("Error in the spawn command: %v\n", err)
+			}
+		case "move":
+			fmt.Println("Moving troops...")
+			_, err := gameState.CommandMove(inputWords)
+			if err != nil {
+				fmt.Printf("Error in the move command: %v\n", err)
+			} else {
+				fmt.Println("Move successful!")
+			}
+		case "status":
+			fmt.Println("Printing player status...")
+			gameState.CommandStatus()
+		case "help":
+			gamelogic.PrintClientHelp()
+		case "spam":
+			fmt.Println("Spamming not allowed yet!")
+		case "quit":
+			gamelogic.PrintQuit()
+			break mainloop
+		default:
+			fmt.Println("Command not understood.")
+		}
+	}
 }

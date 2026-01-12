@@ -32,12 +32,32 @@ func main() {
 		log.Fatal(err)
 	}
 
-	pubsub.PublishJSON(amqpChannel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
+	_, _, err = pubsub.DeclareAndBind(
+		connection,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		routing.GameLogSlug+".*",
+		pubsub.DURABLE,
+	)
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
-	sig := <-signalChannel
 
-	fmt.Printf("%v signal received. Shutting down...", sig)
-	connection.Close()
+mainloop:
+	for {
+		inputWords := gamelogic.GetInput()
+		switch inputWords[0] {
+		case "pause":
+			fmt.Println("Sending a pause message.")
+			pubsub.PublishJSON(amqpChannel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
+		case "resume":
+			fmt.Println("Sending a resume message.")
+			pubsub.PublishJSON(amqpChannel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: false})
+		case "quit":
+			fmt.Println("Exiting...")
+			break mainloop
+		default:
+			fmt.Println("Command not understood.")
+		}
+	}
 }

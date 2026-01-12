@@ -32,29 +32,3 @@ func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	}
 	return nil
 }
-
-func DeclareAndBind(
-	conn *amqp.Connection,
-	exchange,
-	queueName,
-	key string,
-	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
-) (*amqp.Channel, amqp.Queue, error) {
-
-	amqpChannel, err := conn.Channel()
-	if err != nil {
-		return nil, amqp.Queue{}, fmt.Errorf("failed to create AMQP channel: %v", err)
-	}
-
-	newQueue, err := amqpChannel.QueueDeclare(queueName, queueType == DURABLE, queueType == TRANSIENT, queueType == TRANSIENT, false, nil)
-	if err != nil {
-		return nil, amqp.Queue{}, fmt.Errorf("failed to create a new queue: %v", err)
-	}
-
-	err = amqpChannel.QueueBind(queueName, key, exchange, false, nil)
-	if err != nil {
-		return nil, amqp.Queue{}, fmt.Errorf("failed to bind the queue '%v' to exchange '%v': %v", queueName, exchange, err)
-	}
-
-	return amqpChannel, newQueue, nil
-}
