@@ -39,6 +39,13 @@ func main() {
 	)
 
 	gameState := gamelogic.NewGameState(username)
+	pubsub.SubscribeJSON(connection,
+		routing.ExchangePerilDirect,
+		"pause."+username,
+		routing.PauseKey,
+		pubsub.TRANSIENT,
+		handlerPause(gameState),
+	)
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
@@ -74,5 +81,12 @@ mainloop:
 		default:
 			fmt.Println("Command not understood.")
 		}
+	}
+}
+
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(ps routing.PlayingState) {
+		defer fmt.Print("> ")
+		gs.HandlePause(ps)
 	}
 }
