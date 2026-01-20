@@ -51,7 +51,7 @@ func main() {
 		"army_moves."+username,
 		"army_moves.*",
 		pubsub.TRANSIENT,
-		handlerMove(gameState),
+		handlerMove(gameState, amqpChannel),
 	)
 
 	signalChannel := make(chan os.Signal, 1)
@@ -105,13 +105,25 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) pubsub.Ack
 	}
 }
 
-func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) pubsub.Acktype {
+func handlerMove(gs *gamelogic.GameState, amqpChan *amqp.Channel) func(gamelogic.ArmyMove) pubsub.Acktype {
 	return func(move gamelogic.ArmyMove) pubsub.Acktype {
 		defer fmt.Print("> ")
 		outcome := gs.HandleMove(move)
-		if outcome == gamelogic.MoveOutComeSafe || outcome == gamelogic.MoveOutcomeMakeWar {
+		switch outcome {
+		case gamelogic.MoveOutComeSafe:
 			return pubsub.ACK
-		} else {
+		case gamelogic.MoveOutcomeMakeWar:
+			pubsub.PublishJSON(
+				amqpChan,
+				routing.ExchangePerilTopic,
+				routing.WarRecognitionsPrefix+"."+gs.GetUsername(),
+				gamelogic.RecognitionOfWar{
+					Attacker: move.Player,
+					Defender: gs.GetPlayerSnap(),
+				},
+			)
+			return pubsub.NACKREQUEUE
+		default:
 			return pubsub.NACKDISCARD
 		}
 	}

@@ -54,7 +54,10 @@ func DeclareAndBind(
 		return nil, amqp.Queue{}, fmt.Errorf("failed to create AMQP channel: %v", err)
 	}
 
-	newQueue, err := amqpChannel.QueueDeclare(queueName, queueType == DURABLE, queueType == TRANSIENT, queueType == TRANSIENT, false, nil)
+	arguments := map[string]interface{}{
+		"x-dead-letter-exchange": "peril_dlx",
+	}
+	newQueue, err := amqpChannel.QueueDeclare(queueName, queueType == DURABLE, queueType == TRANSIENT, queueType == TRANSIENT, false, arguments)
 	if err != nil {
 		return nil, amqp.Queue{}, fmt.Errorf("failed to create a new queue: %v", err)
 	}
